@@ -5,11 +5,18 @@
 
 namespace m1
 {
+    struct MeshInfo
+    {
+        std::string name{ "box" };
+        std::string group{ "primitives" };
+        glm::vec3 pos{ 0.0f, 0.0f, 0.0f };
+        glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
+    };
+
     class Lab1 : public gfxc::SimpleScene
     {
      public:
-        Lab1();
-        ~Lab1();
+         Lab1() = default;
 
         void Init() override;
 
@@ -28,6 +35,11 @@ namespace m1
         void OnWindowResize(int width, int height) override;
 
         // TODO(student): Class variables go here
-
+        glm::vec3 m_bgColor{ 0.0f, 0.0f, 0.0f };
+        bool m_randomizeColor{ false };
+        int m_currModelIndex{ 0 };
+        static MeshInfo m_meshes[4];
+        bool m_playModelRoulette{ false };
+        double m_rouletteStartTime{ 0.0 };
     };
 }   // namespace m1

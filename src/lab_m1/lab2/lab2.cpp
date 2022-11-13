@@ -109,10 +109,54 @@ void Lab2::Init()
         // Actually create the mesh from the data
         CreateMesh("square", vertices, indices, GL_TRIANGLES);
     }
+
+    // TODO(student): EXTRA Create a circle; can be filled (disk) or not.
+    {
+        glm::vec3 center{ 0.0f, 0.0f, 0.0f };
+        GLfloat radius = 1.0f;
+        glm::vec3 color{ 1.0f, 1.0f, 1.0f };
+        glm::vec3 normal{ 0.0f, 1.0f, 0.0f };
+        int slices = 32; // minimum 3
+
+        vector<VertexFormat> vertices{};
+        vector<unsigned int> indices{};
+
+        const GLfloat step = static_cast<GLfloat>(2 * M_PI / slices);
+        for (int i = 0; i < slices; ++i)
+        {
+            const GLfloat angle_rad = i * step;
+            vertices.emplace_back(VertexFormat{ {center.x + radius * cosf(angle_rad), 0.0f, center.z + radius * sinf(angle_rad)}, color, normal });
+            indices.push_back(i);
+        }
+
+        // Create circle
+        CreateMesh("circle", vertices, indices, GL_LINE_LOOP);
+    }
+    {
+        glm::vec3 center{ 0.0f, 0.0f, 0.0f };
+        GLfloat radius = 1.0f;
+        glm::vec3 color{ 1.0f, 1.0f, 1.0f };
+        glm::vec3 normal{ 0.2f, 0.8f, 0.6f };
+        int slices = 32; // minimum 3
+
+        vector<VertexFormat> vertices{ VertexFormat{center, color, normal} };
+        vector<unsigned int> indices{ 0 };
+
+        const GLfloat step = static_cast<GLfloat>(2 * M_PI / slices);
+        for (int i = 0; i <= slices; ++i)
+        {
+            const GLfloat angle_rad = i * step;
+            vertices.emplace_back(VertexFormat{ {center.x + radius * cosf(angle_rad), 0.0f, center.z + radius * sinf(angle_rad)}, color, normal });
+            indices.push_back(i + 1);
+        }
+
+        // Create disk
+        CreateMesh("disk", vertices, indices, GL_TRIANGLE_FAN);
+    }
 }
 
 
-void Lab2::CreateMesh(const char *name, const std::vector<VertexFormat> &vertices, const std::vector<unsigned int> &indices, const GLenum drawMode = GL_TRIANGLES)
+void Lab2::CreateMesh(const char *name, const std::vector<VertexFormat> &vertices, const std::vector<unsigned int> &indices, const GLenum drawMode)
 {
     unsigned int VAO = 0;
     // TODO(student): Create the VAO and bind it
@@ -215,6 +259,12 @@ void Lab2::Update(float deltaTimeSeconds)
 
     // TODO(student): Draw the square
     RenderMesh(meshes["square"], shaders["VertexColor"], glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(1.0f));
+
+    // TODO(student): Draw the disk
+    RenderMesh(meshes["disk"], shaders["VertexColor"], glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(1.0f));
+
+    // TODO(student): Draw the circle
+    RenderMesh(meshes["circle"], shaders["VertexColor"], glm::vec3(1.5f, 1.75f, 1.5f), glm::vec3(1.0f));
 
     // TODO(student): Disable face culling
     glDisable(GL_CULL_FACE);

@@ -72,10 +72,43 @@ void Lab2::Init()
     // with 12 vertices. Think about it, why would you want that, and how
     // would you do it? After all, a tetrahedron has only 4 vertices
     // by definition!
+    {
+        vector<VertexFormat> vertices
+        {
+            VertexFormat(glm::vec3( 0.5f, 0.0f,   0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3(  0.0f, 0.0f,  0.5f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3(-0.25f, 0.0f, -0.25f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3(  0.0f, 0.5f,   0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+        };
+
+        vector<unsigned int> indices =
+        {
+            3, 0, 2, 1, 3, 0
+        };
+
+        // Actually create the mesh from the data
+        CreateMesh("tetrahedron", vertices, indices, GL_TRIANGLE_STRIP);
+    }
 
     // TODO(student): Create a square using two triangles with
     // opposing vertex orientations.
+    {
+        vector<VertexFormat> vertices
+        {
+            VertexFormat(glm::vec3(-0.5f, 0.0f, -0.5f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3(-0.5f, 0.0f,  0.5f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3( 0.5f, 0.0f, -0.5f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3( 0.5f, 0.0f,  0.5f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+        };
 
+        vector<unsigned int> indices =
+        {
+            0, 1, 2, 1, 2, 3
+        };
+
+        // Actually create the mesh from the data
+        CreateMesh("square", vertices, indices, GL_TRIANGLES);
+    }
 }
 
 
@@ -83,7 +116,7 @@ void Lab2::CreateMesh(const char *name, const std::vector<VertexFormat> &vertice
 {
     unsigned int VAO = 0;
     // TODO(student): Create the VAO and bind it
-    glGenBuffers(1, &VAO);
+    glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
     unsigned int VBO = 0;
@@ -175,11 +208,13 @@ void Lab2::Update(float deltaTimeSeconds)
     RenderMesh(meshes["cube_A"], shaders["VertexColor"], glm::vec3(-1.5f, 0.5f, 0), glm::vec3(0.25f));
 
     // TODO(student): Draw the mesh that was created with `CreateMesh()`
-    //RenderMesh(meshes["cube_B"], shaders["VertexColor"], glm::vec3(1.5f, 0.5f, 0), glm::vec3(0.5f));
+    RenderMesh(meshes["cube_B"], shaders["VertexColor"], glm::vec3(1.5f, 0.5f, 0), glm::vec3(0.5f));
 
     // TODO(student): Draw the tetrahedron
+    RenderMesh(meshes["tetrahedron"], shaders["VertexColor"], glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f));
 
     // TODO(student): Draw the square
+    RenderMesh(meshes["square"], shaders["VertexColor"], glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(1.0f));
 
     // TODO(student): Disable face culling
     glDisable(GL_CULL_FACE);

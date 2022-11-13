@@ -42,24 +42,29 @@ void Lab2::Init()
     {
         vector<VertexFormat> vertices
         {
-            VertexFormat(glm::vec3(-1, -1,  1), glm::vec3(0, 1, 1), glm::vec3(0.2, 0.8, 0.6)),
             // TODO(student): Complete the vertices data for the cube mesh
-
+            VertexFormat(glm::vec3(-0.5f, -0.5f, -0.5f), glm::vec3(0.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3(-0.5f,  0.5f, -0.5f), glm::vec3(0.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3( 0.5f, -0.5f, -0.5f), glm::vec3(0.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3( 0.5f,  0.5f, -0.5f), glm::vec3(0.0f, 1.0f, 1.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
+            VertexFormat(glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.2f, 0.8f, 0.6f)),
         };
 
         vector<unsigned int> indices =
         {
-            0, 1, 2,    // indices for first triangle
-            1, 3, 2,    // indices for second triangle
             // TODO(student): Complete indices data for the cube mesh
-
+            4, 6, 5, 7, 3, 6, 2, 4, 0, 5, 1, 3, 0, 2
         };
 
         meshes["cube_A"] = new Mesh("generated cube 1");
         meshes["cube_A"]->InitFromData(vertices, indices);
+        meshes["cube_A"]->SetDrawMode(GL_TRIANGLE_STRIP);
 
         // Actually create the mesh from the data
-        CreateMesh("cube_B", vertices, indices);
+        CreateMesh("cube_B", vertices, indices, GL_TRIANGLE_STRIP);
     }
 
     // TODO(student): Create a tetrahedron mesh. You can create it with
@@ -74,20 +79,28 @@ void Lab2::Init()
 }
 
 
-void Lab2::CreateMesh(const char *name, const std::vector<VertexFormat> &vertices, const std::vector<unsigned int> &indices)
+void Lab2::CreateMesh(const char *name, const std::vector<VertexFormat> &vertices, const std::vector<unsigned int> &indices, const GLenum drawMode = GL_TRIANGLES)
 {
     unsigned int VAO = 0;
     // TODO(student): Create the VAO and bind it
+    glGenBuffers(1, &VAO);
+    glBindVertexArray(VAO);
 
     unsigned int VBO = 0;
     // TODO(student): Create the VBO and bind it
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
     // TODO(student): Send vertices data into the VBO buffer
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
 
     unsigned int IBO = 0;
     // TODO(student): Create the IBO and bind it
+    glGenBuffers(1, &IBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
 
     // TODO(student): Send indices data into the IBO buffer
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), &indices[0], GL_STATIC_DRAW);
 
     // ========================================================================
     // This section demonstrates how the GPU vertex shader program
@@ -114,6 +127,7 @@ void Lab2::CreateMesh(const char *name, const std::vector<VertexFormat> &vertice
     // ========================================================================
 
     // TODO(student): Unbind the VAO
+    glBindVertexArray(0);
 
     // Check for OpenGL errors
     if (GetOpenGLError() == GL_INVALID_OPERATION)
@@ -125,6 +139,7 @@ void Lab2::CreateMesh(const char *name, const std::vector<VertexFormat> &vertice
     // Mesh information is saved into a Mesh object
     meshes[name] = new Mesh(name);
     meshes[name]->InitFromBuffer(VAO, static_cast<unsigned int>(indices.size()));
+    meshes[name]->SetDrawMode(drawMode);
 }
 
 
@@ -148,8 +163,10 @@ void Lab2::Update(float deltaTimeSeconds)
     glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 
     // TODO(student): Enable face culling
+    glEnable(GL_CULL_FACE);
 
     // TODO(student): Set face custom culling. Use the `cullFace` variable.
+    glCullFace(cullFace);
 
     // Render an object using face normals for color
     RenderMesh(meshes["box"], shaders["VertexNormal"], glm::vec3(0, 0.5f, -1.5f), glm::vec3(0.75f));
@@ -158,13 +175,14 @@ void Lab2::Update(float deltaTimeSeconds)
     RenderMesh(meshes["cube_A"], shaders["VertexColor"], glm::vec3(-1.5f, 0.5f, 0), glm::vec3(0.25f));
 
     // TODO(student): Draw the mesh that was created with `CreateMesh()`
+    //RenderMesh(meshes["cube_B"], shaders["VertexColor"], glm::vec3(1.5f, 0.5f, 0), glm::vec3(0.5f));
 
     // TODO(student): Draw the tetrahedron
 
     // TODO(student): Draw the square
 
     // TODO(student): Disable face culling
-
+    glDisable(GL_CULL_FACE);
 }
 
 
@@ -190,6 +208,10 @@ void Lab2::OnKeyPress(int key, int mods)
     // TODO(student): Switch between GL_FRONT and GL_BACK culling.
     // Save the state in `cullFace` variable and apply it in the
     // `Update()` method, NOT here!
+    if (key == GLFW_KEY_F2)
+    {
+        cullFace = (cullFace == GL_FRONT) ? GL_BACK : GL_FRONT;
+    }
 
     if (key == GLFW_KEY_SPACE)
     {

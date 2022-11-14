@@ -43,6 +43,8 @@ void Lab3::Init()
     // then in the `cx` and `cy` class variables (see the header). Use
     // `corner` and `squareSide`. These two class variables will be used
     // in the `Update()` function. Think about it, why do you need them?
+    cx = corner.x + squareSide * 0.5f;
+    cy = corner.y + squareSide * 0.5f;
 
     // Initialize tx and ty (the translation steps)
     translateX = 0;
@@ -53,7 +55,16 @@ void Lab3::Init()
     scaleY = 1;
 
     // Initialize angularStep
-    angularStep = 0;
+    angularStep = 0.0f;
+
+    // Initialize verticalStep
+    verticalStep = 144.0f; // square goes up initially
+
+    // Initialize scaleRate
+    scaleRate = 1.0f;
+
+    // Initialize spinVelocity
+    spinVelocity = 2.0f;
 
     Mesh* square1 = object2D::CreateSquare("square1", corner, squareSide, glm::vec3(1, 0, 0), true);
     AddMeshToList(square1);
@@ -84,17 +95,41 @@ void Lab3::Update(float deltaTimeSeconds)
     // in order to create animations. Use the class variables in the
     // class header, and if you need more of them to complete the task,
     // add them over there!
+    translateY += verticalStep * deltaTimeSeconds;
+    const float currPosY = translateY + 250.0f;
+    if (((currPosY + 100.0f) > window->GetResolution().y) || (currPosY < 0))
+    {
+        verticalStep *= -1.0f;
+        translateY += 2.0f * verticalStep * deltaTimeSeconds;
+    }
+
+    if (scaleX > 5.0f || scaleX < 0.0f)
+    {
+        scaleRate *= -1.0f;
+    }
+    scaleX += scaleRate * deltaTimeSeconds;
+    scaleY += scaleRate * deltaTimeSeconds;
+
+    angularStep += spinVelocity * deltaTimeSeconds;
+    if (angularStep > 2.0f * M_PI)
+    {
+        angularStep = 0.0f;
+        spinVelocity = (spinVelocity == 4.0f) ? 2.0f : 4.0f;
+    }
 
     modelMatrix = glm::mat3(1);
     modelMatrix *= transform2D::Translate(150, 250);
     // TODO(student): Create animations by multiplying the current
     // transform matrix with the matrices you just implemented.
     // Remember, the last matrix in the chain will take effect first!
-
+    modelMatrix *= transform2D::Translate(0.0f, translateY);
     RenderMesh2D(meshes["square1"], shaders["VertexColor"], modelMatrix);
 
     modelMatrix = glm::mat3(1);
     modelMatrix *= transform2D::Translate(400, 250);
+    modelMatrix *= transform2D::Translate(cx, cy);
+    modelMatrix *= transform2D::Scale(scaleX, scaleY);
+    modelMatrix *= transform2D::Translate(-cx, -cy);
     // TODO(student): Create animations by multiplying the current
     // transform matrix with the matrices you just implemented
     // Remember, the last matrix in the chain will take effect first!
@@ -103,6 +138,9 @@ void Lab3::Update(float deltaTimeSeconds)
 
     modelMatrix = glm::mat3(1);
     modelMatrix *= transform2D::Translate(650, 250);
+    modelMatrix *= transform2D::Translate(cx, cy);
+    modelMatrix *= transform2D::Rotate(angularStep);
+    modelMatrix *= transform2D::Translate(-cx, -cy);
     // TODO(student): Create animations by multiplying the current
     // transform matrix with the matrices you just implemented
     // Remember, the last matrix in the chain will take effect first!

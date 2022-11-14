@@ -33,6 +33,9 @@ namespace m1
         float translateX, translateY;
         float scaleX, scaleY;
         float angularStep;
+        float verticalStep;
+        float scaleRate;
+        float spinVelocity;
 
         // TODO(student): If you need any other class variables, define them here.
 

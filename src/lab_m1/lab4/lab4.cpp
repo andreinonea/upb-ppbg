@@ -97,6 +97,7 @@ void Lab4::Update(float deltaTimeSeconds)
     glViewport(miniViewportArea.x, miniViewportArea.y, miniViewportArea.width, miniViewportArea.height);
 
     // TODO(student): render the scene again, in the new viewport
+    RenderScene();
     DrawCoordinateSystem();
 }
 
@@ -114,7 +115,66 @@ void Lab4::FrameEnd()
 void Lab4::OnInputUpdate(float deltaTime, int mods)
 {
     // TODO(student): Add transformation logic
-
+    if (window->KeyHold(GLFW_KEY_A))
+    {
+        translateX += 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_D))
+    {
+        translateX -= 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_W))
+    {
+        translateZ += 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_S))
+    {
+        translateZ -= 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_R))
+    {
+        translateY += 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_F))
+    {
+        translateY -= 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_1))
+    {
+        scaleX += 1.0f * deltaTime;
+        scaleY += 1.0f * deltaTime;
+        scaleZ += 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_2))
+    {
+        scaleX -= 1.0f * deltaTime;
+        scaleY -= 1.0f * deltaTime;
+        scaleZ -= 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_3))
+    {
+        angularStepOX += 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_4))
+    {
+        angularStepOX -= 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_5))
+    {
+        angularStepOY += 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_6))
+    {
+        angularStepOY -= 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_7))
+    {
+        angularStepOZ += 1.0f * deltaTime;
+    }
+    if (window->KeyHold(GLFW_KEY_8))
+    {
+        angularStepOZ -= 1.0f * deltaTime;
+    }
 }
 
 
@@ -138,6 +198,32 @@ void Lab4::OnKeyPress(int key, int mods)
     }
     
     // TODO(student): Add viewport movement and scaling logic
+    if (key == GLFW_KEY_I)
+    {
+        miniViewportArea.y += 5.0f;
+    }
+    if (key == GLFW_KEY_J)
+    {
+        miniViewportArea.x -= 5.0f;
+    }
+    if (key == GLFW_KEY_K)
+    {
+        miniViewportArea.y -= 5.0f;
+    }
+    if (key == GLFW_KEY_L)
+    {
+        miniViewportArea.x += 5.0f;
+    }
+    if (key == GLFW_KEY_U)
+    {
+        miniViewportArea.width -= 5.0f;
+        miniViewportArea.height -= 5.0f;
+    }
+    if (key == GLFW_KEY_O)
+    {
+        miniViewportArea.width += 5.0f;
+        miniViewportArea.height += 5.0f;
+    }
 }
 
 

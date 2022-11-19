@@ -109,13 +109,23 @@ Mesh* Lab6::CreateMesh(const char *name, const std::vector<VertexFormat> &vertic
     // if you do the same thing in the shader (but not in this function)?
     // Finally, what happens if you do the same thing in both places? Why?
 
+    // Raspuns: Cand schimbam aici ordinea, afectam ordinea pentru ambele obiecte
+    //          create prin CreateMesh, indiferent de shader-ul aplicat. Datele
+    //          trimise sunt inversate.
+    //
+    //          Cand schimbam in shader-ul din laborator ordinea, afectam doar
+    //          obiectul care foloseste acest shader. Celalalt ramane la fel, desigur.
+    //
+    //          Schimband in ambele locuri, shader-ul extern ramane schimbat,
+    //          dar cel din laborator isi anuleaza schimbarea.
+
     // Set vertex position attribute
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), 0);
 
     // Set vertex normal attribute
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), (void*)(sizeof(glm::vec3)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), (void*) (sizeof(glm::vec3)));
 
     // Set texture coordinate attribute
     glEnableVertexAttribArray(2);
@@ -123,7 +133,7 @@ Mesh* Lab6::CreateMesh(const char *name, const std::vector<VertexFormat> &vertic
 
     // Set vertex color attribute
     glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), (void*)(2 * sizeof(glm::vec3) + sizeof(glm::vec2)));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexFormat), (void*) (2 * sizeof(glm::vec3) + sizeof(glm::vec2)));
     // ========================================================================
 
     // Unbind the VAO
@@ -195,22 +205,34 @@ void Lab6::RenderSimpleMesh(Mesh *mesh, Shader *shader, const glm::mat4 & modelM
     glUseProgram(shader->program);
 
     // TODO(student): Get shader location for uniform mat4 "Model"
+    GLuint u_model = glGetUniformLocation(shader->program, "Model");
 
     // TODO(student): Set shader uniform "Model" to modelMatrix
+    glUniformMatrix4fv(u_model, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
     // TODO(student): Get shader location for uniform mat4 "View"
+    GLuint u_view = glGetUniformLocation(shader->program, "View");
 
     // TODO(student): Set shader uniform "View" to viewMatrix
-    glm::mat4 viewMatrix = GetSceneCamera()->GetViewMatrix();
+    glUniformMatrix4fv(u_view, 1, GL_FALSE, glm::value_ptr(GetSceneCamera()->GetViewMatrix()));
 
     // TODO(student): Get shader location for uniform mat4 "Projection"
+    GLuint u_projection = glGetUniformLocation(shader->program, "Projection");
 
     // TODO(student): Set shader uniform "Projection" to projectionMatrix
-    glm::mat4 projectionMatrix = GetSceneCamera()->GetProjectionMatrix();
+    glUniformMatrix4fv(u_projection, 1, GL_FALSE, glm::value_ptr(GetSceneCamera()->GetProjectionMatrix()));
+    
+    // BONUS:
+    GLuint u_time = glGetUniformLocation(shader->program, "running_time");
+    glUniform1f(u_time, Engine::GetElapsedTime());
 
     // Draw the object
     glBindVertexArray(mesh->GetBuffers()->m_VAO);
     glDrawElements(mesh->GetDrawMode(), static_cast<int>(mesh->indices.size()), GL_UNSIGNED_INT, 0);
+
+    // Clear state
+    glUseProgram(0);
+    glBindVertexArray(0);
 }
 
 

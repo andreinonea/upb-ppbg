@@ -22,14 +22,17 @@ using namespace m1;
 
 static vector<glm::vec3> trees_pos{};
 static vector<glm::vec3> cpu_track{};
-static glm::vec3 camera_offset{ 0.8f, 0.5f, 0.0f };
+static float camera_offset_xz{};
+static float camera_offset_y{};
 static glm::vec3 player_pos{};
 static glm::vec3 player_dir{};
 static glm::vec3 cpu_pos{};
 static unsigned int next_point{};
-static float cpu_speed = 1.9f;
-static float player_turn_speed = 1000.0f;
-static float frontwheel_angle = 0.0f;
+static float cpu_speed{};
+static float player_turn_speed{};
+static float initial_player_rotation{};
+static float frontwheel_angle{};
+static float camera_angle{};
 
 
 Tema2::Tema2()
@@ -233,12 +236,18 @@ void Tema2::Init()
         meshes["circle"]->SetDrawMode(GL_TRIANGLE_FAN);
     }
 
+    camera_offset_xz = 1.0f;
+    camera_offset_y = 0.5f;
     player_pos = glm::vec3{ -16.5f, 0.0f, 1.0f };
     player_dir = glm::vec3{ -1.0f, 0.0f, 0.0f };
     cpu_pos = player_pos + glm::vec3_forward * 0.5f;
     next_point = 14;
+    player_turn_speed = 1000.0f;
     player_turn_speed = 100.0f;
-    GetSceneCamera()->SetRotation(glm::quatLookAt(player_dir, glm::vec3_up));
+    cpu_speed = 1.9f;
+    initial_player_rotation = -90.0f;
+    frontwheel_angle = 0.0f;
+    camera_angle = 0.0f;
 }
 
 void Tema2::FrameStart()
@@ -257,8 +266,8 @@ void Tema2::FrameStart()
 void Tema2::Update(float deltaTimeSeconds)
 {
     // Player movement
-    glm::vec3 camera_pos = player_pos + camera_offset;
-    glm::quat player_rotation = glm::quatLookAt(player_dir, glm::vec3_up);
+    // glm::vec3 camera_pos = player_pos + camera_offset;
+    // glm::quat player_rotation = glm::quatLookAt(player_dir, glm::vec3_up);
     // GetSceneCamera()->SetPositionAndRotation(camera_pos, player_rotation);
     // GetSceneCamera()->Move
 
@@ -283,6 +292,9 @@ void Tema2::Update(float deltaTimeSeconds)
     RenderMesh(meshes["start"], shaders["VertexColor"], glm::vec3(0.0f, 0.01f, 0.0f), glm::vec3(1.0f));
 
     // std::cout << glm::to_string(GetSceneCamera()->m_transform->GetWorldRotation()) << '\n';
+    /*float camera_rad = RADIANS(camera_angle);
+    glm::vec3 camera_up = -glm::vec3{ glm::sinf(camera_rad), glm::cosf(camera_rad), 0.0f };
+    std::cout << glm::to_string(camera_up) << '\n';*/
 
     glCullFace(GL_BACK);
 
@@ -301,7 +313,7 @@ void Tema2::Update(float deltaTimeSeconds)
     }
 
     // std::cout << glm::degrees(glm::acosf(glm::dot(player_dir, glm::vec3_left))) << '\n';
-    std::cout << std::fmodf(frontwheel_angle, 360.0f) << '\n';
+    // std::cout << std::fmodf(camera_angle, 360.0f) << '\n';
 
     // Draw vegetation
     glEnable(GL_PRIMITIVE_RESTART);
@@ -316,7 +328,7 @@ void Tema2::Update(float deltaTimeSeconds)
 
 void Tema2::FrameEnd()
 {
-    // DrawCoordinateSystem();
+    //DrawCoordinateSystem();
 }
 
 
@@ -328,47 +340,59 @@ void Tema2::FrameEnd()
 
 void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
-    GetSceneCamera()->SetPosition(player_pos + camera_offset);
+    if (window->MouseHold(GLFW_MOUSE_BUTTON_2))
+        return;
 
     if (window->KeyHold(GLFW_KEY_W))
     {
-        GetSceneCamera()->MoveForward(cpu_speed * deltaTime);
+        camera_angle += cpu_speed * deltaTime * 5;
+        // GetSceneCamera()->MoveForward(cpu_speed * deltaTime);
         player_pos += player_dir * cpu_speed * deltaTime;
     }
     if (window->KeyHold(GLFW_KEY_S))
     {
-        GetSceneCamera()->MoveForward(-cpu_speed * deltaTime);
+        camera_angle -= cpu_speed * deltaTime * 5;
+        // GetSceneCamera()->MoveForward(-cpu_speed * deltaTime);
         player_pos -= player_dir * cpu_speed * deltaTime;
     }
     if (window->KeyHold(GLFW_KEY_A))
     {
         float left_turn = player_turn_speed * deltaTime;
         frontwheel_angle += left_turn;
-        if (frontwheel_angle > 45.0f)
+        if (frontwheel_angle > 45.0f && false)
         {
             // If we tried to turn too much, we must subtract the excess from the camera rotation as well
-            left_turn -= frontwheel_angle - 45.0f;
+            // left_turn -= frontwheel_angle - 45.0f;
             frontwheel_angle = 45.0f;
         }
-        GetSceneCamera()->RotateOY(left_turn * 10.0f);
+        // GetSceneCamera()->RotateOY(left_turn * 10.0f);
         // player_dir -= glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
     }
     if (window->KeyHold(GLFW_KEY_D))
     {
         float right_turn = -player_turn_speed * deltaTime;
         frontwheel_angle += right_turn;
-        if (frontwheel_angle < -45.0f)
+        if (frontwheel_angle < -45.0f && false)
         {
             // If we tried to turn too much, we must subtract the excess from the camera rotation as well
-            right_turn -= frontwheel_angle + 45.0f;
+            // right_turn -= frontwheel_angle + 45.0f;
             frontwheel_angle = -45.0f;
         }
-        GetSceneCamera()->RotateOY(right_turn * 10.0f);
+        // GetSceneCamera()->RotateOY(right_turn * 10.0f);
         // player_dir += glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
     }
 
-    player_dir = glm::normalize(player_dir);
-    GetSceneCamera()->Update();
+    float angle_rad = RADIANS(initial_player_rotation + frontwheel_angle);
+    player_dir = glm::vec3{ glm::sinf(angle_rad), 0.0f, glm::cosf(angle_rad) };
+
+    /*float camera_rad = RADIANS(camera_angle);
+    glm::vec3 camera_up = -glm::vec3{ glm::sinf(camera_rad), glm::cosf(camera_rad), 0.0f };*/
+
+    // GetSceneCamera()->SetPosition(player_pos + camera_offset);
+    glm::vec3 camera_pos = player_pos + (-player_dir * camera_offset_xz) + (glm::vec3_up * camera_offset_y);
+    glm::quat camera_rotation = glm::quatLookAt(player_dir, glm::vec3_up);
+    GetSceneCamera()->SetPositionAndRotation(camera_pos, camera_rotation);
+    // GetSceneCamera()->Update();
 }
 
 

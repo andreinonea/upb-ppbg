@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <iostream>
+#include <fstream>
 
 #include "core/engine.h"
 #include "utils/gl_utils.h"
@@ -28,30 +29,15 @@ Tema1::~Tema1()
 
 void Tema1::Init()
 {
-    // Define circle shape
+    // Load and generate track
+    std::ifstream in("sample_track.txt");
+
+    GLfloat a = 0.0f, b = 0.0f;
+    while (in >> a >> b)
     {
-        glm::vec3 center{ 0.0f, 0.0f, 0.0f };
-        GLfloat radius = 1.0f;
-        glm::vec3 color{ 1.0f, 1.0f, 1.0f };
-        glm::vec3 normal{ 0.2f, 0.8f, 0.6f };
-        int slices = 32; // minimum 3
-
-        vector<VertexFormat> vertices{ VertexFormat{center, color, normal} };
-        vector<unsigned int> indices{ 0 };
-
-        const GLfloat step = static_cast<GLfloat>(2 * M_PI / slices);
-        for (int i = 0; i <= slices; ++i)
-        {
-            const GLfloat angle_rad = i * step;
-            vertices.emplace_back(VertexFormat{ {center.x + radius * cosf(angle_rad), 0.0f, center.z + radius * sinf(angle_rad)}, color, normal });
-            indices.push_back(i + 1);
-        }
-
-        // Create circle
-        meshes["circle"] = new Mesh("circle");
-        meshes["circle"]->InitFromData(vertices, indices);
-        meshes["circle"]->SetDrawMode(GL_TRIANGLE_FAN);
+        std::cout << a << ' ' << b << '\n';
     }
+
 }
 
 void Tema1::FrameStart()

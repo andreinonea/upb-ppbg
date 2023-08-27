@@ -22,11 +22,14 @@ using namespace m1;
 
 static vector<glm::vec3> trees_pos{};
 static vector<glm::vec3> cpu_track{};
+static glm::vec3 camera_offset{ 0.8f, 0.5f, 0.0f };
 static glm::vec3 player_pos{};
 static glm::vec3 player_dir{};
 static glm::vec3 cpu_pos{};
 static unsigned int next_point{};
 static float cpu_speed = 1.9f;
+static float player_turn_speed = 1000.0f;
+static float frontwheel_angle = 0.0f;
 
 
 Tema2::Tema2()
@@ -149,14 +152,14 @@ void Tema2::Init()
     {
         vector<VertexFormat> vertices
         {
-            VertexFormat{ glm::vec3{ -0.10f,  0.02f, -0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ -0.10f,  0.02f,  0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ -0.10f,  0.20f, -0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ -0.10f,  0.20f,  0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ 0.10f,  0.02f, -0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ 0.10f,  0.02f,  0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ 0.10f,  0.20f, -0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ 0.10f,  0.20f,  0.25f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.02f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.02f,  0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.20f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.20f,  0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ 0.25f,  0.02f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ 0.25f,  0.02f,  0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ 0.25f,  0.20f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ 0.25f,  0.20f,  0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
         };
 
         vector<unsigned int> indices
@@ -234,6 +237,8 @@ void Tema2::Init()
     player_dir = glm::vec3{ -1.0f, 0.0f, 0.0f };
     cpu_pos = player_pos + glm::vec3_forward * 0.5f;
     next_point = 14;
+    player_turn_speed = 100.0f;
+    GetSceneCamera()->SetRotation(glm::quatLookAt(player_dir, glm::vec3_up));
 }
 
 void Tema2::FrameStart()
@@ -252,7 +257,7 @@ void Tema2::FrameStart()
 void Tema2::Update(float deltaTimeSeconds)
 {
     // Player movement
-    glm::vec3 camera_pos = player_pos + glm::vec3 { 0.8f, 0.5f, 0.0f };
+    glm::vec3 camera_pos = player_pos + camera_offset;
     glm::quat player_rotation = glm::quatLookAt(player_dir, glm::vec3_up);
     // GetSceneCamera()->SetPositionAndRotation(camera_pos, player_rotation);
     // GetSceneCamera()->Move
@@ -288,13 +293,15 @@ void Tema2::Update(float deltaTimeSeconds)
         glm::mat4 model{ 1.0f };
         model = glm::translate(model, player_pos);
         // model = glm::rotate(model, 3.14f / 2.0f, glm::vec3_up);
-        model = glm::translate(model, glm::vec3{ 0.0f, -5.5f, 0.0f });
-        model *= glm::toMat4(player_rotation);
-        model = glm::translate(model, glm::vec3 { 0.0f, 5.5f, 0.0f });
+        //model = glm::translate(model, glm::vec3{ 0.0f, -5.5f, 0.0f });
+        // model *= glm::toMat4(player_rotation);
+        model = glm::rotate(model, RADIANS(frontwheel_angle), glm::vec3_up);
+        //model = glm::translate(model, glm::vec3 { 0.0f, 5.5f, 0.0f });
         RenderMesh(meshes["player"], shaders["VertexColor"], model);
     }
 
-    std::cout << glm::degrees(glm::acosf(glm::dot(player_dir, glm::vec3_left))) << '\n';
+    // std::cout << glm::degrees(glm::acosf(glm::dot(player_dir, glm::vec3_left))) << '\n';
+    std::cout << std::fmodf(frontwheel_angle, 360.0f) << '\n';
 
     // Draw vegetation
     glEnable(GL_PRIMITIVE_RESTART);
@@ -321,15 +328,47 @@ void Tema2::FrameEnd()
 
 void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
+    GetSceneCamera()->SetPosition(player_pos + camera_offset);
+
     if (window->KeyHold(GLFW_KEY_W))
+    {
+        GetSceneCamera()->MoveForward(cpu_speed * deltaTime);
         player_pos += player_dir * cpu_speed * deltaTime;
+    }
     if (window->KeyHold(GLFW_KEY_S))
+    {
+        GetSceneCamera()->MoveForward(-cpu_speed * deltaTime);
         player_pos -= player_dir * cpu_speed * deltaTime;
+    }
     if (window->KeyHold(GLFW_KEY_A))
-        player_dir -= glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
+    {
+        float left_turn = player_turn_speed * deltaTime;
+        frontwheel_angle += left_turn;
+        if (frontwheel_angle > 45.0f)
+        {
+            // If we tried to turn too much, we must subtract the excess from the camera rotation as well
+            left_turn -= frontwheel_angle - 45.0f;
+            frontwheel_angle = 45.0f;
+        }
+        GetSceneCamera()->RotateOY(left_turn * 10.0f);
+        // player_dir -= glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
+    }
     if (window->KeyHold(GLFW_KEY_D))
-        player_dir += glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
+    {
+        float right_turn = -player_turn_speed * deltaTime;
+        frontwheel_angle += right_turn;
+        if (frontwheel_angle < -45.0f)
+        {
+            // If we tried to turn too much, we must subtract the excess from the camera rotation as well
+            right_turn -= frontwheel_angle + 45.0f;
+            frontwheel_angle = -45.0f;
+        }
+        GetSceneCamera()->RotateOY(right_turn * 10.0f);
+        // player_dir += glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
+    }
+
     player_dir = glm::normalize(player_dir);
+    GetSceneCamera()->Update();
 }
 
 

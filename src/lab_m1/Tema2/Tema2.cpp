@@ -42,6 +42,8 @@ static unsigned int start_line_idx{ 14 };
 static unsigned int player_curr_segment = start_line_idx;
 static float car_width = 0.20f;
 static float car_length = 0.50f;
+static gfxc::Camera *main_camera = nullptr;
+static gfxc::Camera *minimap = nullptr;
 
 
 namespace m1
@@ -399,36 +401,23 @@ void Tema2::Init()
     piua = false;
     OnInputUpdate(0.0f, 0);
     piua = true;
-}
 
-void Tema2::FrameStart()
-{
-    // Clears the color buffer (using the previously set color) and depth buffer
-    glClearColor(0.529f, 0.808f, 0.922f, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+    main_camera = GetSceneCamera();
     glm::ivec2 resolution = window->GetResolution();
 
-    // Sets the screen area where to draw
-    glViewport(0, 0, resolution.x, resolution.y);
-
-    glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+    minimap = new gfxc::Camera();
+    //minimap->SetOrthographic(0.0f, 300.0f, 0.0f, 250.0f, 0.1f, 10.0f);
+    //minimap->SetOrthographic(-5.0f, 5.0f, -5.0f, 5.0f, 0.1f, 50.0f);
+    //minimap->m_transform->SetWorldPosition(player_pos);
+    //minimap->m_transform->SetWorldRotation(glm::vec3(-0, 0, 0));
+    minimap->SetPerspective(60, window->props.aspectRatio, 0.01f, 200);
+    minimap->m_transform->SetWorldPosition(player_pos + glm::vec3_up * 5.0f);
+    minimap->m_transform->SetWorldRotation(glm::vec3(-90.0f, 90.0f, 0.0f));
+    minimap->Update();
 }
 
-void Tema2::Update(float deltaTimeSeconds)
+void Tema2::Render()
 {
-    // CPU movement
-    if (!piua)
-        for (int i = 0; i < cpu_cars.size(); ++i)
-        {
-            bool can_update = true;
-            for (int j = i + 1; j < cpu_cars.size(); ++j)
-                if (IsSpheresCollision(cpu_cars[i].pos, car_width, cpu_cars[j].pos, car_width))
-                    can_update = false;
-            if (can_update)
-                cpu_cars[i].Update(deltaTimeSeconds);
-        }
-
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
 
@@ -462,17 +451,63 @@ void Tema2::Update(float deltaTimeSeconds)
     // Draw vegetation
     glEnable(GL_PRIMITIVE_RESTART);
     glPrimitiveRestartIndex(0xFF);
-    for (const glm::vec3 &pos : trees_pos)
+    for (const glm::vec3& pos : trees_pos)
         RenderMesh(meshes["tree"], shaders["VertexColor"], pos, glm::vec3(1.0f));
     glDisable(GL_PRIMITIVE_RESTART);
 
     glDisable(GL_CULL_FACE);
 }
 
+void Tema2::FrameStart()
+{
+    // Clears the color buffer (using the previously set color) and depth buffer
+    glClearColor(0.529f, 0.808f, 0.922f, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+}
+
+void Tema2::Update(float deltaTimeSeconds)
+{
+    // CPU movement
+    if (!piua)
+        for (int i = 0; i < cpu_cars.size(); ++i)
+        {
+            bool can_update = true;
+            for (int j = i + 1; j < cpu_cars.size(); ++j)
+                if (IsSpheresCollision(cpu_cars[i].pos, car_width, cpu_cars[j].pos, car_width))
+                    can_update = false;
+            if (can_update)
+                cpu_cars[i].Update(deltaTimeSeconds);
+        }
+
+    // Sets the screen area where to draw main camera
+    glm::ivec2 resolution = window->GetResolution();
+    glViewport(0, 0, resolution.x, resolution.y);
+    gfxc::Camera* mainc = GetSceneCamera();
+
+    int loc = shaders["VertexColor"]->GetUniformLocation("car_pos");
+    glUniform3fv(loc, 1, glm::value_ptr(player_pos));
+
+    loc = shaders["VertexColor"]->GetUniformLocation("scale_factor");
+    // glUniform1f(loc, 0.005f);
+
+    Render();
+
+    // DrawCoordinateSystem();
+
+    // Minimap
+    glViewport(0, 0, 400, 200);
+
+    SetSceneCamera(minimap);
+    GetSceneCamera()->SetPosition(player_pos + glm::vec3_up * 8.0f);
+    Render();
+    SetSceneCamera(mainc);
+}
+
 
 void Tema2::FrameEnd()
 {
-    // DrawCoordinateSystem();
 }
 
 
@@ -487,6 +522,8 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
     if (window->MouseHold(GLFW_MOUSE_BUTTON_2) || piua)
         return;
+
+    //assert(main_camera == GetSceneCamera());
 
     thetime += deltaTime;
 

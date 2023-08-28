@@ -273,6 +273,11 @@ void SimpleScene::ReloadShaders() const
 }
 
 
+void gfxc::SimpleScene::SetSceneCamera(Camera *other)
+{
+    camera = other;
+}
+
 Camera * SimpleScene::GetSceneCamera() const
 {
     return camera;

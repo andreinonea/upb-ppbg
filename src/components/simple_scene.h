@@ -45,6 +45,7 @@ namespace gfxc
 
         virtual void RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix);
 
+        void SetSceneCamera(Camera *camera);
         Camera *GetSceneCamera() const;
         InputController *GetCameraInput() const;
 

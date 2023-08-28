@@ -38,6 +38,8 @@ static unsigned int start_line_idx{};
 
 #define CPU_CAR(index) "cpu" + std::to_string(index)
 
+#define next_float() (float) (rand()) / (float) RAND_MAX
+
 namespace m1
 {
     struct Cpu {
@@ -45,26 +47,50 @@ namespace m1
         glm::vec3 dir{};
         unsigned int next_point{};
         float speed{};
+        glm::vec3 target{};
 
         Cpu(const glm::vec3& pos, int next_point, float speed)
             : pos(pos), next_point(next_point), speed(speed)
         {
-            dir = glm::vec3_left;
+            NextTarget();
         }
 
         void Update(float dt)
         {
-            glm::vec3 path = track_pois[next_point] - pos;
-            dir = glm::normalize(path);
             pos += dir * speed * dt;
 
-            if (glm::length(path) < 0.5f)
+            if (glm::length(target - pos) < 0.5f)
             {
                 if (next_point == 0)
                     next_point = track_pois.size() - 1;
                 else
                     next_point -= 1;
+
+                NextTarget();
             }
+        }
+
+        // Instead of going straight on the middle of the track,
+        // allow some randomness in choosing the direction
+        void NextTarget()
+        {
+            // Get random value in [0, 1]
+            float random = next_float();
+
+            // The direction of the next track segment -- usually perpendicular to the direction of travel
+            glm::vec3 segment_dir = track_segments[next_point].first - track_segments[next_point].second;
+
+            // Choose to offset either left or right for more variation
+            if (random < 0.5f)
+                segment_dir *= -1.0f;
+
+            // After using the random for direction choice, extend it to track width length.
+            // Now we have random value in [0, track_width]
+            random *= track_width;
+
+            // Find next path to follow by going [0, track_width / 4] to the left or right from the centered point
+            target = track_pois[next_point] + (segment_dir * (random * 0.25f));
+            dir = glm::normalize(target - pos);
         }
     };
 }
@@ -115,6 +141,8 @@ Tema2::~Tema2()
 
 void Tema2::Init()
 {
+    srand(time(nullptr));
+
     camera_offset_xz = 1.0f;
     camera_offset_y = 0.5f;
     player_pos = glm::vec3{ -16.5f, 0.0f, 1.0f };

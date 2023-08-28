@@ -55,7 +55,12 @@ namespace m1
             pos += dir * speed * dt;
 
             if (glm::length(path) < 0.5f)
-                next_point = (next_point - 1) % cpu_track.size();
+            {
+                if (next_point == 0)
+                    next_point = cpu_track.size() - 1;
+                else
+                    next_point -= 1;
+            }
         }
     };
 }
@@ -110,8 +115,8 @@ void Tema2::Init()
     camera_offset_y = 0.5f;
     player_pos = glm::vec3{ -16.5f, 0.0f, 1.0f };
     player_dir = glm::vec3{ -1.0f, 0.0f, 0.0f };
-    player_speed = 1.9f;
-    player_turn_speed = 90.0f;
+    player_speed = 2.9f;
+    player_turn_speed = 45.0f;
     initial_player_rotation = -90.0f;
     frontwheel_angle = 0.0f;
     piua = true;
@@ -197,9 +202,9 @@ void Tema2::Init()
     }
 
     // Create CPU-controlled car
-    AddCpu(player_pos + glm::vec3_forward * 0.5f, 14, 1.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
-    AddCpu(player_pos - glm::vec3_left * 1.0f, 14, 1.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
-    AddCpu(player_pos + glm::vec3_forward * 0.5f - glm::vec3_left * 1.0f, 14, 2.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
+    AddCpu(player_pos + glm::vec3_forward * 0.5f, 14, 2.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
+    AddCpu(player_pos - glm::vec3_left * 1.0f, 14, 2.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
+    AddCpu(player_pos + glm::vec3_forward * 0.5f - glm::vec3_left * 1.0f, 14, 3.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
 
     // Create player-controlled car
     {

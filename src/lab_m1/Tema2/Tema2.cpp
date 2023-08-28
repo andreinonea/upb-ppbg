@@ -74,10 +74,10 @@ void Tema2::AddCpu(const glm::vec3& pos, int next_point, float speed, const glm:
 
     vector<VertexFormat> vertices
     {
-        VertexFormat{ glm::vec3{ -0.25f,  0.02f, -0.10f }, color },
-        VertexFormat{ glm::vec3{ -0.25f,  0.02f,  0.10f }, color },
-        VertexFormat{ glm::vec3{ -0.25f,  0.20f, -0.10f }, color },
-        VertexFormat{ glm::vec3{ -0.25f,  0.20f,  0.10f }, color },
+        VertexFormat{ glm::vec3{ -0.25f,  0.02f, -0.10f }, glm::vec3{ 1.0f } },
+        VertexFormat{ glm::vec3{ -0.25f,  0.02f,  0.10f }, glm::vec3{ 1.0f } },
+        VertexFormat{ glm::vec3{ -0.25f,  0.20f, -0.10f }, glm::vec3{ 0.0f } },
+        VertexFormat{ glm::vec3{ -0.25f,  0.20f,  0.10f }, glm::vec3{ 0.0f } },
         VertexFormat{ glm::vec3{ 0.25f,  0.02f, -0.10f }, color },
         VertexFormat{ glm::vec3{ 0.25f,  0.02f,  0.10f }, color },
         VertexFormat{ glm::vec3{ 0.25f,  0.20f, -0.10f }, color },
@@ -210,10 +210,10 @@ void Tema2::Init()
     {
         vector<VertexFormat> vertices
         {
-            VertexFormat{ glm::vec3{ -0.25f,  0.02f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ -0.25f,  0.02f,  0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ -0.25f,  0.20f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
-            VertexFormat{ glm::vec3{ -0.25f,  0.20f,  0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.02f, -0.10f }, glm::vec3{ 1.0f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.02f,  0.10f }, glm::vec3{ 1.0f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.20f, -0.10f }, glm::vec3{ 0.0f } },
+            VertexFormat{ glm::vec3{ -0.25f,  0.20f,  0.10f }, glm::vec3{ 0.0f } },
             VertexFormat{ glm::vec3{ 0.25f,  0.02f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
             VertexFormat{ glm::vec3{ 0.25f,  0.02f,  0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
             VertexFormat{ glm::vec3{ 0.25f,  0.20f, -0.10f }, glm::vec3{ 0.145f, 0.518f, 0.871f } },
@@ -335,7 +335,7 @@ void Tema2::Update(float deltaTimeSeconds)
     {
         glm::mat4 model{ 1.0f };
         model = glm::translate(model, cpu_cars[i].pos);
-        model = glm::rotate(model, glm::acosf(glm::dot(cpu_cars[i].dir, glm::vec3_left)), glm::vec3_up);
+        model = glm::rotate(model, glm::sign(cpu_cars[i].dir.z) * glm::acosf(glm::dot(cpu_cars[i].dir, glm::vec3_left)), glm::vec3_up);
         RenderMesh(meshes[CPU_CAR(i)], shaders["VertexColor"], model);
     }
 

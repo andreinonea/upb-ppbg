@@ -21,7 +21,8 @@ using namespace m1;
  */
 
 static vector<glm::vec3> trees_pos{};
-static vector<glm::vec3> cpu_track{};
+static vector<glm::vec3> track_pois{};
+static vector<std::pair<glm::vec3, glm::vec3>> track_segments{};
 static float camera_offset_xz{};
 static float camera_offset_y{};
 static glm::vec3 player_pos{};
@@ -31,6 +32,9 @@ static float player_turn_speed{};
 static float initial_player_rotation{};
 static float frontwheel_angle{};
 static bool piua{};
+static bool wireframe{};
+static float track_width{};
+static unsigned int start_line_idx{};
 
 #define CPU_CAR(index) "cpu" + std::to_string(index)
 
@@ -50,14 +54,14 @@ namespace m1
 
         void Update(float dt)
         {
-            glm::vec3 path = cpu_track[next_point] - pos;
+            glm::vec3 path = track_pois[next_point] - pos;
             dir = glm::normalize(path);
             pos += dir * speed * dt;
 
             if (glm::length(path) < 0.5f)
             {
                 if (next_point == 0)
-                    next_point = cpu_track.size() - 1;
+                    next_point = track_pois.size() - 1;
                 else
                     next_point -= 1;
             }
@@ -120,6 +124,9 @@ void Tema2::Init()
     initial_player_rotation = -90.0f;
     frontwheel_angle = 0.0f;
     piua = true;
+    wireframe = false;
+    track_width = 1.0f;
+    start_line_idx = 14;
 
     // Load and generate track
     {
@@ -138,30 +145,34 @@ void Tema2::Init()
             glm::vec3 p1 { x1, 0.0f, y1 };
             glm::vec3 p2 { x2, 0.0f, y2 };
 
-            cpu_track.push_back(p1);
-            cpu_track.push_back(p2);
-
             glm::vec3 segment = p2 - p1;
             glm::vec3 side_dir = glm::normalize(glm::cross(segment, glm::vec3_up));
 
-            glm::vec3 r1 = p1 - 1.0f * side_dir;
-            glm::vec3 a1 = p1 + 1.0f * side_dir;
+            // i = interior, e = exterior
+            glm::vec3 i1 = p1 + track_width * side_dir;
+            glm::vec3 e1 = p1 - track_width * side_dir;
 
-            glm::vec3 r2 = p2 - 1.0f * side_dir;
-            glm::vec3 a2 = p2 + 1.0f * side_dir;
+            glm::vec3 i2 = p2 + track_width * side_dir;
+            glm::vec3 e2 = p2 - track_width * side_dir;
 
-            trees_pos.push_back(a1 + 1.0f * side_dir);
-            trees_pos.push_back(r1 - 1.0f * side_dir);
-            trees_pos.push_back(a2 + 1.0f * side_dir);
-            trees_pos.push_back(r2 - 1.0f * side_dir);
+            track_pois.push_back(p1);
+            track_pois.push_back(p2);
 
-            vertices.emplace_back(VertexFormat{ a1, glm::vec3 { 0.1f, 0.1f, 0.1f } });
+            track_segments.emplace_back(std::make_pair(i1, e1));
+            track_segments.emplace_back(std::make_pair(i2, e2));
+
+            trees_pos.push_back(i1 + 1.0f * side_dir);
+            trees_pos.push_back(e1 - 1.0f * side_dir);
+            trees_pos.push_back(i2 + 1.0f * side_dir);
+            trees_pos.push_back(e2 - 1.0f * side_dir);
+
+            vertices.emplace_back(VertexFormat{ i1, glm::vec3 { 0.1f, 0.1f, 0.1f } });
             indices.push_back(i++);
-            vertices.emplace_back(VertexFormat{ r1, glm::vec3 { 0.1f, 0.1f, 0.1f } });
+            vertices.emplace_back(VertexFormat{ e1, glm::vec3 { 0.1f, 0.1f, 0.1f } });
             indices.push_back(i++);
-            vertices.emplace_back(VertexFormat{ a2, glm::vec3 { 0.1f, 0.1f, 0.1f } });
+            vertices.emplace_back(VertexFormat{ i2, glm::vec3 { 0.1f, 0.1f, 0.1f } });
             indices.push_back(i++);
-            vertices.emplace_back(VertexFormat{ r2, glm::vec3 { 0.1f, 0.1f, 0.1f } });
+            vertices.emplace_back(VertexFormat{ e2, glm::vec3 { 0.1f, 0.1f, 0.1f } });
             indices.push_back(i++);
         }
 
@@ -178,21 +189,20 @@ void Tema2::Init()
         meshes["track"]->SetDrawMode(GL_TRIANGLE_STRIP);
 
         // Create start/finish line somewhere
-        int start_index = 28;
-        glm::vec3 astart = vertices[start_index].position;
-        glm::vec3 rstart = vertices[start_index + 1].position;
-        glm::vec3 anext = vertices[start_index + 2].position;
-        glm::vec3 rnext = vertices[start_index + 3].position;
-        glm::vec3 dir = glm::normalize(anext - astart);
-        glm::vec3 aend = astart + 0.2f * dir;
-        glm::vec3 rend = rstart + 0.2f * dir;
+        glm::vec3 istart = track_segments[start_line_idx].first;
+        glm::vec3 estart = track_segments[start_line_idx].second;
+        glm::vec3 inext = track_segments[start_line_idx - 1].first;
+        glm::vec3 enext = track_segments[start_line_idx - 1].second;
+        glm::vec3 dir = glm::normalize(inext - istart);
+        glm::vec3 iend = istart + 0.2f * dir;
+        glm::vec3 eend = estart + 0.2f * dir;
 
         vector<VertexFormat> sf_vertices
         {
-            VertexFormat{ astart },
-            VertexFormat{ rstart },
-            VertexFormat{ aend },
-            VertexFormat{ rend },
+            VertexFormat{ iend },
+            VertexFormat{ eend },
+            VertexFormat{ istart },
+            VertexFormat{ estart },
         };
         vector<unsigned int> sf_indices { 0, 1, 2, 3 };
 
@@ -202,9 +212,9 @@ void Tema2::Init()
     }
 
     // Create CPU-controlled car
-    AddCpu(player_pos + glm::vec3_forward * 0.5f, 14, 2.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
-    AddCpu(player_pos - glm::vec3_left * 1.0f, 14, 2.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
-    AddCpu(player_pos + glm::vec3_forward * 0.5f - glm::vec3_left * 1.0f, 14, 3.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
+    AddCpu(player_pos + glm::vec3_forward * 0.5f, 10, 2.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
+    AddCpu(player_pos - glm::vec3_left * 1.0f, 10, 2.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
+    AddCpu(player_pos + glm::vec3_forward * 0.5f - glm::vec3_left * 1.0f, 10, 3.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
 
     // Create player-controlled car
     {
@@ -307,6 +317,8 @@ void Tema2::FrameStart()
 
     // Sets the screen area where to draw
     glViewport(0, 0, resolution.x, resolution.y);
+
+    glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 }
 
 void Tema2::Update(float deltaTimeSeconds)
@@ -407,6 +419,11 @@ void Tema2::OnKeyPress(int key, int mods)
     // Add key press event
     if (key == GLFW_KEY_P)
         piua = !piua;
+
+    if (key == GLFW_KEY_W && mods & GLFW_MOD_CONTROL)
+    {
+        wireframe = !wireframe;
+    }
 }
 
 

@@ -142,9 +142,76 @@ Tema2::~Tema2()
 {
 }
 
-bool CheckSpheresCollision(const glm::vec3& o1, float r1, const glm::vec3& o2, float r2)
+float ProjectPointLine_RH(glm::vec3& projection, const glm::vec3& p, const glm::vec3& l1, const glm::vec3& l2)
 {
-    return glm::length(o2 - o1) < r1 + r2;
+    float length = glm::length(l2 - l1);
+    float u = (
+        (p.x - l1.x) * (l2.x - l1.x)
+        + (p.y - l1.y) * (l2.y - l1.y)
+        + (p.z - l1.z) * (l2.z - l1.z)
+        ) / (length * length);
+    projection.x = l1.x + u * (l2.x - l1.x);
+    projection.y = l1.y + u * (l2.y - l1.y);
+    projection.z = l1.z + u * (l2.z - l1.z);
+    return u;
+}
+
+bool IsSpheresCollision(const glm::vec3& a_pos, float a_radius, const glm::vec3& b_pos, float b_radius)
+{
+    return glm::length(b_pos - a_pos) < a_radius + b_radius;
+}
+
+bool IsCarsCollision(const glm::vec3& a_pos, const glm::vec3& a_dir, const glm::vec3& b_pos, const glm::vec3& b_dir)
+{
+    float offset = (car_length - car_width) * 0.5f;
+    const glm::vec3 a_start = a_pos - a_dir * offset;
+    const glm::vec3 a_end = a_pos + a_dir * offset;
+
+    const glm::vec3 b_start = b_pos - b_dir * offset;
+    const glm::vec3 b_end = b_pos + b_dir * offset;
+
+    const glm::vec3 v0 = b_start - a_start;
+    const glm::vec3 v1 = b_end - a_start;
+    const glm::vec3 v2 = b_start - a_end;
+    const glm::vec3 v3 = b_end - a_end;
+
+    const float d0 = glm::dot(v0, v0);
+    const float d1 = glm::dot(v1, v1);
+    const float d2 = glm::dot(v2, v2);
+    const float d3 = glm::dot(v3, v3);
+
+    glm::vec3 best_a{};
+    if (d2 < d0 || d2 < d1 || d3 < d0 || d3 < d1)
+        best_a = a_end;
+    else
+        best_a = a_start;
+
+    glm::vec3 best_b{};
+    float u = ProjectPointLine_RH(best_b, best_a, b_start, b_end);
+
+    /*if (u < 0.0f || u > 1.0f)
+    {
+        std::cout << "CACAA\n";
+        return false;
+    }*/
+
+    u = ProjectPointLine_RH(best_a, best_b, a_start, a_end);
+
+    /*if (u < 0.0f || u > 1.0f)
+    {
+        std::cout << "CACAA\n";
+        return false;
+    }*/
+
+    std::cout << "Player pos: " << glm::to_string(a_pos) << '\n';
+    std::cout << "Best A: " << glm::to_string(best_a) << '\n';
+
+    std::cout << "CPU pos: " << glm::to_string(b_pos) << '\n';
+    std::cout << "Best B: " << glm::to_string(best_b) << '\n';
+
+    std::cout << "length " << glm::length(best_b - best_a) << " < " << car_width << '\n';
+
+    return glm::length(best_b - best_a) < car_width;
 }
 
 void Tema2::Init()
@@ -238,6 +305,10 @@ void Tema2::Init()
     AddCpu(player_pos + glm::vec3{ -0.25f, 0.0f, 0.5f }, 10, 4.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
     AddCpu(player_pos - glm::vec3_left * 1.0f, 10, 4.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
     AddCpu(player_pos + glm::vec3{ 0.75f, 0.0f, 0.5f }, 10, 5.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
+
+    //AddCpu(player_pos + glm::vec3{ -0.25f, 0.0f, 1.5f }, 10, 4.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
+    //AddCpu(player_pos - glm::vec3_left * 2.0f, 10, 4.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
+    //AddCpu(player_pos + glm::vec3{ 0.75f, 0.0f, 0.5f }, 10, 5.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
 
     // Create player-controlled car
     {
@@ -347,9 +418,16 @@ void Tema2::FrameStart()
 void Tema2::Update(float deltaTimeSeconds)
 {
     // CPU movement
-    if (! piua)
-        for (Cpu& cpu : cpu_cars)
-            cpu.Update(deltaTimeSeconds);
+    if (!piua)
+        for (int i = 0; i < cpu_cars.size(); ++i)
+        {
+            bool can_update = true;
+            for (int j = i + 1; j < cpu_cars.size(); ++j)
+                if (IsSpheresCollision(cpu_cars[i].pos, car_width, cpu_cars[j].pos, car_width))
+                    can_update = false;
+            if (can_update)
+                cpu_cars[i].Update(deltaTimeSeconds);
+        }
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
@@ -403,30 +481,24 @@ void Tema2::FrameEnd()
  *  how they behave, see `input_controller.h`.
  */
 
-
-float ProjectPointLine_RH(glm::vec3 &projection, const glm::vec3& p, const glm::vec3& l1, const glm::vec3& l2)
-{
-    float length = glm::length(l2 - l1);
-    float u = (
-        (p.x - l1.x) * (l2.x - l1.x)
-        + (p.y - l1.y) * (l2.y - l1.y)
-        + (p.z - l1.z) * (l2.z - l1.z)
-        ) / (length * length);
-    projection.x = l1.x + u * (l2.x - l1.x);
-    projection.y = l1.y + u * (l2.y - l1.y);
-    projection.z = l1.z + u * (l2.z - l1.z);
-    return u;
-}
-
+static float thetime = 0.0f;
 
 void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
     if (window->MouseHold(GLFW_MOUSE_BUTTON_2) || piua)
         return;
 
+    thetime += deltaTime;
+
     for (const Cpu& cpu : cpu_cars)
-        if (CheckSpheresCollision(player_pos, std::fmaxf(car_length, car_width), cpu.pos, std::fmaxf(car_length, car_width)))
+    //Cpu& cpu = cpu_cars[1];
+        // if (IsCarsCollision(player_pos, player_dir, cpu.pos, cpu.dir))
+        if (IsSpheresCollision(player_pos, car_width, cpu.pos, car_width))
+        {
+            // std::cout << thetime << " -> Player collides with another car\n";
             return;
+        }
+
 
     float actual_speed = player_speed;
     float actual_turn_speed = player_turn_speed;
@@ -467,30 +539,30 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
     glm::vec3 point_on_line{};
     float offset_in_line = ProjectPointLine_RH(point_on_line, new_player_pos, track_pois[(player_curr_segment + 1) % track_pois.size()], track_pois[player_curr_segment]);
 
-    std::cout << "Offset from segment " << player_curr_segment << ": " << offset_in_line << '\n';
+    // std::cout << "Offset from segment " << player_curr_segment << ": " << offset_in_line << '\n';
 
     if (offset_in_line < 0.0f)
     {
         player_curr_segment = (player_curr_segment + 1) % track_pois.size();
         float next_segment = (player_curr_segment + 1) % track_pois.size();
-        std::cout << "Player went backward to segment " << player_curr_segment << '\n';
-        std::cout << "                   next segment " << next_segment << '\n';
+        // std::cout << "Player went backward to segment " << player_curr_segment << '\n';
+        // std::cout << "                   next segment " << next_segment << '\n';
         ProjectPointLine_RH(point_on_line, new_player_pos, track_pois[player_curr_segment], track_pois[next_segment]);
     }
     else if (offset_in_line > 1.0f)
     {
         float previous_segment = player_curr_segment;
         player_curr_segment = (player_curr_segment == 0) ? track_pois.size() - 1 : player_curr_segment - 1;
-        std::cout << "Player went forward to segment " << player_curr_segment << '\n';
-        std::cout << "                   old segment " << previous_segment<< '\n';
+        // std::cout << "Player went forward to segment " << player_curr_segment << '\n';
+        // std::cout << "                   old segment " << previous_segment<< '\n';
         ProjectPointLine_RH(point_on_line, new_player_pos, track_pois[previous_segment], track_pois[player_curr_segment]);
     }
-    std::cout << "Player in segment " << player_curr_segment << '\n';
+    // std::cout << "Player in segment " << player_curr_segment << '\n';
 
     const float dist = glm::length(new_player_pos - point_on_line);
     if (dist > half_track_width)
     {
-        std::cout << "Player out of track bounds! Distance = " << dist << '\n';
+        // std::cout << "Player out of track bounds! Distance = " << dist << '\n';
     }
     else
         player_pos = new_player_pos;

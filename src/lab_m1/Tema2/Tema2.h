@@ -12,6 +12,7 @@ namespace m1
         ~Tema2();
 
         void Init() override;
+        void AddCpu(const glm::vec3& pos, int next_point, float speed, const glm::vec3& color);
 
     private:
         void FrameStart() override;
@@ -26,5 +27,6 @@ namespace m1
         void OnMouseBtnRelease(int mouseX, int mouseY, int button, int mods) override;
         void OnMouseScroll(int mouseX, int mouseY, int offsetX, int offsetY) override;
         void OnWindowResize(int width, int height) override;
+
     };
 }   // namespace m1

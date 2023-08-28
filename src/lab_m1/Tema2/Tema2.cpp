@@ -26,13 +26,72 @@ static float camera_offset_xz{};
 static float camera_offset_y{};
 static glm::vec3 player_pos{};
 static glm::vec3 player_dir{};
-static glm::vec3 cpu_pos{};
-static unsigned int next_point{};
-static float cpu_speed{};
+static float player_speed{};
 static float player_turn_speed{};
 static float initial_player_rotation{};
 static float frontwheel_angle{};
-static float camera_angle{};
+static bool piua{};
+
+#define CPU_CAR(index) "cpu" + std::to_string(index)
+
+namespace m1
+{
+    struct Cpu {
+        glm::vec3 pos{};
+        glm::vec3 dir{};
+        unsigned int next_point{};
+        float speed{};
+
+        Cpu(const glm::vec3& pos, int next_point, float speed)
+            : pos(pos), next_point(next_point), speed(speed)
+        {
+            dir = glm::vec3_left;
+        }
+
+        void Update(float dt)
+        {
+            glm::vec3 path = cpu_track[next_point] - pos;
+            dir = glm::normalize(path);
+            pos += dir * speed * dt;
+
+            if (glm::length(path) < 0.5f)
+                next_point = (next_point - 1) % cpu_track.size();
+        }
+    };
+}
+
+static vector<Cpu> cpu_cars{};
+
+
+void Tema2::AddCpu(const glm::vec3& pos, int next_point, float speed, const glm::vec3& color)
+{
+    int index = cpu_cars.size();
+
+    vector<VertexFormat> vertices
+    {
+        VertexFormat{ glm::vec3{ -0.25f,  0.02f, -0.10f }, color },
+        VertexFormat{ glm::vec3{ -0.25f,  0.02f,  0.10f }, color },
+        VertexFormat{ glm::vec3{ -0.25f,  0.20f, -0.10f }, color },
+        VertexFormat{ glm::vec3{ -0.25f,  0.20f,  0.10f }, color },
+        VertexFormat{ glm::vec3{ 0.25f,  0.02f, -0.10f }, color },
+        VertexFormat{ glm::vec3{ 0.25f,  0.02f,  0.10f }, color },
+        VertexFormat{ glm::vec3{ 0.25f,  0.20f, -0.10f }, color },
+        VertexFormat{ glm::vec3{ 0.25f,  0.20f,  0.10f }, color },
+    };
+
+    vector<unsigned int> indices
+    {
+        4, 6, 5, 7, 3, 6, 2, 4, 0, 5, 1, 3, 0, 2,
+    };
+
+    meshes[CPU_CAR(index)] = new Mesh(CPU_CAR(index));
+    meshes[CPU_CAR(index)]->InitFromData(vertices, indices);
+    meshes[CPU_CAR(index)]->SetDrawMode(GL_TRIANGLE_STRIP);
+
+    cpu_cars.emplace_back(Cpu{ pos, next_point, speed });
+
+    std::cout << "Added " CPU_CAR(index) << '\n';
+}
 
 
 Tema2::Tema2()
@@ -47,6 +106,16 @@ Tema2::~Tema2()
 
 void Tema2::Init()
 {
+    camera_offset_xz = 1.0f;
+    camera_offset_y = 0.5f;
+    player_pos = glm::vec3{ -16.5f, 0.0f, 1.0f };
+    player_dir = glm::vec3{ -1.0f, 0.0f, 0.0f };
+    player_speed = 1.9f;
+    player_turn_speed = 90.0f;
+    initial_player_rotation = -90.0f;
+    frontwheel_angle = 0.0f;
+    piua = true;
+
     // Load and generate track
     {
         std::ifstream in("sample_track_new_doubled.txt");
@@ -128,28 +197,9 @@ void Tema2::Init()
     }
 
     // Create CPU-controlled car
-    {
-        vector<VertexFormat> vertices
-        {
-            VertexFormat{ glm::vec3{ -0.25f,  0.02f, -0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-            VertexFormat{ glm::vec3{ -0.25f,  0.02f,  0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-            VertexFormat{ glm::vec3{ -0.25f,  0.20f, -0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-            VertexFormat{ glm::vec3{ -0.25f,  0.20f,  0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-            VertexFormat{ glm::vec3{ 0.25f,  0.02f, -0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-            VertexFormat{ glm::vec3{ 0.25f,  0.02f,  0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-            VertexFormat{ glm::vec3{ 0.25f,  0.20f, -0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-            VertexFormat{ glm::vec3{ 0.25f,  0.20f,  0.10f }, glm::vec3{ 0.824f, 0.871f, 0.145f } },
-        };
-
-        vector<unsigned int> indices
-        {
-            4, 6, 5, 7, 3, 6, 2, 4, 0, 5, 1, 3, 0, 2,
-        };
-
-        meshes["cpu"] = new Mesh("cpu");
-        meshes["cpu"]->InitFromData(vertices, indices);
-        meshes["cpu"]->SetDrawMode(GL_TRIANGLE_STRIP);
-    }
+    AddCpu(player_pos + glm::vec3_forward * 0.5f, 14, 1.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
+    AddCpu(player_pos - glm::vec3_left * 1.0f, 14, 1.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
+    AddCpu(player_pos + glm::vec3_forward * 0.5f - glm::vec3_left * 1.0f, 14, 2.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
 
     // Create player-controlled car
     {
@@ -236,18 +286,10 @@ void Tema2::Init()
         meshes["circle"]->SetDrawMode(GL_TRIANGLE_FAN);
     }
 
-    camera_offset_xz = 1.0f;
-    camera_offset_y = 0.5f;
-    player_pos = glm::vec3{ -16.5f, 0.0f, 1.0f };
-    player_dir = glm::vec3{ -1.0f, 0.0f, 0.0f };
-    cpu_pos = player_pos + glm::vec3_forward * 0.5f;
-    next_point = 14;
-    player_turn_speed = 1000.0f;
-    player_turn_speed = 100.0f;
-    cpu_speed = 1.9f;
-    initial_player_rotation = -90.0f;
-    frontwheel_angle = 0.0f;
-    camera_angle = 0.0f;
+    // Do one update to center camera correctly
+    piua = false;
+    OnInputUpdate(0.0f, 0);
+    piua = true;
 }
 
 void Tema2::FrameStart()
@@ -262,22 +304,12 @@ void Tema2::FrameStart()
     glViewport(0, 0, resolution.x, resolution.y);
 }
 
-
 void Tema2::Update(float deltaTimeSeconds)
 {
-    // Player movement
-    // glm::vec3 camera_pos = player_pos + camera_offset;
-    // glm::quat player_rotation = glm::quatLookAt(player_dir, glm::vec3_up);
-    // GetSceneCamera()->SetPositionAndRotation(camera_pos, player_rotation);
-    // GetSceneCamera()->Move
-
     // CPU movement
-    glm::vec3 path = cpu_track[next_point] - cpu_pos;
-    glm::vec3 cpu_dir = glm::normalize(path);
-    cpu_pos += cpu_dir * cpu_speed * deltaTimeSeconds;
-
-    if (glm::length(path) < 0.5f)
-        next_point = (next_point - 1) % cpu_track.size();
+    if (! piua)
+        for (Cpu& cpu : cpu_cars)
+            cpu.Update(deltaTimeSeconds);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
@@ -291,29 +323,23 @@ void Tema2::Update(float deltaTimeSeconds)
     RenderMesh(meshes["track"], shaders["VertexColor"], glm::vec3(0.0f), glm::vec3(1.0f));
     RenderMesh(meshes["start"], shaders["VertexColor"], glm::vec3(0.0f, 0.01f, 0.0f), glm::vec3(1.0f));
 
-    // std::cout << glm::to_string(GetSceneCamera()->m_transform->GetWorldRotation()) << '\n';
-    /*float camera_rad = RADIANS(camera_angle);
-    glm::vec3 camera_up = -glm::vec3{ glm::sinf(camera_rad), glm::cosf(camera_rad), 0.0f };
-    std::cout << glm::to_string(camera_up) << '\n';*/
-
     glCullFace(GL_BACK);
 
     // Draw cars
-    RenderMesh(meshes["cpu"], shaders["VertexColor"], cpu_pos, glm::vec3(1.0f));
+    for (int i = 0; i < cpu_cars.size(); ++i)
+    {
+        glm::mat4 model{ 1.0f };
+        model = glm::translate(model, cpu_cars[i].pos);
+        model = glm::rotate(model, glm::acosf(glm::dot(cpu_cars[i].dir, glm::vec3_left)), glm::vec3_up);
+        RenderMesh(meshes[CPU_CAR(i)], shaders["VertexColor"], model);
+    }
 
     {
         glm::mat4 model{ 1.0f };
         model = glm::translate(model, player_pos);
-        // model = glm::rotate(model, 3.14f / 2.0f, glm::vec3_up);
-        //model = glm::translate(model, glm::vec3{ 0.0f, -5.5f, 0.0f });
-        // model *= glm::toMat4(player_rotation);
         model = glm::rotate(model, RADIANS(frontwheel_angle), glm::vec3_up);
-        //model = glm::translate(model, glm::vec3 { 0.0f, 5.5f, 0.0f });
         RenderMesh(meshes["player"], shaders["VertexColor"], model);
     }
-
-    // std::cout << glm::degrees(glm::acosf(glm::dot(player_dir, glm::vec3_left))) << '\n';
-    // std::cout << std::fmodf(camera_angle, 360.0f) << '\n';
 
     // Draw vegetation
     glEnable(GL_PRIMITIVE_RESTART);
@@ -328,7 +354,7 @@ void Tema2::Update(float deltaTimeSeconds)
 
 void Tema2::FrameEnd()
 {
-    //DrawCoordinateSystem();
+    // DrawCoordinateSystem();
 }
 
 
@@ -340,65 +366,42 @@ void Tema2::FrameEnd()
 
 void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
-    if (window->MouseHold(GLFW_MOUSE_BUTTON_2))
+    if (window->MouseHold(GLFW_MOUSE_BUTTON_2) || piua)
         return;
 
     if (window->KeyHold(GLFW_KEY_W))
-    {
-        camera_angle += cpu_speed * deltaTime * 5;
-        // GetSceneCamera()->MoveForward(cpu_speed * deltaTime);
-        player_pos += player_dir * cpu_speed * deltaTime;
-    }
+        player_pos += player_dir * player_speed * deltaTime;
     if (window->KeyHold(GLFW_KEY_S))
-    {
-        camera_angle -= cpu_speed * deltaTime * 5;
-        // GetSceneCamera()->MoveForward(-cpu_speed * deltaTime);
-        player_pos -= player_dir * cpu_speed * deltaTime;
-    }
+        player_pos -= player_dir * player_speed * deltaTime;
     if (window->KeyHold(GLFW_KEY_A))
     {
         float left_turn = player_turn_speed * deltaTime;
         frontwheel_angle += left_turn;
         if (frontwheel_angle > 45.0f && false)
-        {
-            // If we tried to turn too much, we must subtract the excess from the camera rotation as well
-            // left_turn -= frontwheel_angle - 45.0f;
             frontwheel_angle = 45.0f;
-        }
-        // GetSceneCamera()->RotateOY(left_turn * 10.0f);
-        // player_dir -= glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
     }
     if (window->KeyHold(GLFW_KEY_D))
     {
         float right_turn = -player_turn_speed * deltaTime;
         frontwheel_angle += right_turn;
         if (frontwheel_angle < -45.0f && false)
-        {
-            // If we tried to turn too much, we must subtract the excess from the camera rotation as well
-            // right_turn -= frontwheel_angle + 45.0f;
             frontwheel_angle = -45.0f;
-        }
-        // GetSceneCamera()->RotateOY(right_turn * 10.0f);
-        // player_dir += glm::normalize(glm::cross(player_dir, glm::vec3_up)) * cpu_speed * deltaTime;
     }
 
     float angle_rad = RADIANS(initial_player_rotation + frontwheel_angle);
     player_dir = glm::vec3{ glm::sinf(angle_rad), 0.0f, glm::cosf(angle_rad) };
 
-    /*float camera_rad = RADIANS(camera_angle);
-    glm::vec3 camera_up = -glm::vec3{ glm::sinf(camera_rad), glm::cosf(camera_rad), 0.0f };*/
-
-    // GetSceneCamera()->SetPosition(player_pos + camera_offset);
     glm::vec3 camera_pos = player_pos + (-player_dir * camera_offset_xz) + (glm::vec3_up * camera_offset_y);
     glm::quat camera_rotation = glm::quatLookAt(player_dir, glm::vec3_up);
     GetSceneCamera()->SetPositionAndRotation(camera_pos, camera_rotation);
-    // GetSceneCamera()->Update();
 }
 
 
 void Tema2::OnKeyPress(int key, int mods)
 {
     // Add key press event
+    if (key == GLFW_KEY_P)
+        piua = !piua;
 }
 
 

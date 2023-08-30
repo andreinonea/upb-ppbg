@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <unordered_map>
 
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -22,6 +23,10 @@ using namespace m1;
 
 #define CPU_CAR(index) "cpu" + std::to_string(index)
 #define next_float() (float) (rand()) / (float) RAND_MAX
+#define SECTOR1_END 14
+#define SECTOR2_END 57
+#define SECTOR3_END 38
+#define PLAYER_NUMBER 31
 
 static vector<glm::vec3> trees_pos{};
 static vector<glm::vec3> track_pois{};
@@ -38,16 +43,59 @@ static bool piua{ true };
 static bool wireframe{ false };
 static float track_width{ 2.0f };
 static float half_track_width = track_width * 0.5f;
-static unsigned int start_line_idx{ 14 };
+static unsigned int start_line_idx{ SECTOR1_END };
 static unsigned int player_curr_segment = start_line_idx;
 static float car_width = 0.20f;
 static float car_length = 0.50f;
-static gfxc::Camera *main_camera = nullptr;
-static gfxc::Camera *minimap = nullptr;
-
+static gfxc::Camera* main_camera = nullptr;
+static gfxc::Camera* minimap = nullptr;
 
 namespace m1
 {
+    enum class Sector : unsigned short
+    {
+        SECTOR_1 = 0,
+        SECTOR_2,
+        SECTOR_3
+    };
+
+    struct Timetable
+    {
+        // Map from car number to list of lap times, stored in array of 3 floats for 3 sectors (using glm::vec3)
+        unordered_map<unsigned int, vector<glm::vec3>> sector_times{};
+
+        Timetable(size_t reserved_cars)
+        {
+            sector_times.reserve(reserved_cars);
+        }
+
+        void RegisterCar(unsigned int car_number)
+        {
+            // Create vector (laps) for car and initialize first lap with zeroes, to be filled by Track()
+            sector_times.emplace(car_number, vector<glm::vec3>{glm::vec3{ 0.0f }});
+        }
+
+        void Track(unsigned int car_number, Sector s, float delta)
+        {
+            if (sector_times.find(car_number) == sector_times.end())
+                return;
+
+            // back() gives us the lap in progress
+            sector_times[car_number].back()[(unsigned short) s] += delta;
+        }
+
+        void PrintCar(unsigned int car_number)
+        {
+            if (sector_times.find(car_number) == sector_times.end())
+                return;
+
+            std::cout << glm::to_string(sector_times[car_number].back()) << '\n';
+        }
+
+    private:
+        std::string _formatter{ "" };
+    };
+
     struct Cpu {
         glm::vec3 pos{};
         glm::vec3 dir{};
@@ -102,6 +150,7 @@ namespace m1
 }
 
 static vector<Cpu> cpu_cars{};
+static Timetable timetable{4};
 
 
 void Tema2::AddCpu(const glm::vec3& pos, int next_point, float speed, const glm::vec3& color)
@@ -216,12 +265,14 @@ bool IsCarsCollision(const glm::vec3& a_pos, const glm::vec3& a_dir, const glm::
     return glm::length(best_b - best_a) < car_width;
 }
 
+
 void Tema2::Init()
 {
     srand(time(nullptr));
 
     // Load and generate track
     {
+        std::cout << "Adding track...\n";
         std::ifstream in("sample_track_new_doubled.txt");
 
         vector<VertexFormat> vertices{};
@@ -272,9 +323,9 @@ void Tema2::Init()
         indices.push_back(0);
         indices.push_back(1);
 
-        for (int idx : indices)
+        /*for (int idx : indices)
             std::cout << idx << ' ';
-        std::cout << '\n';
+        std::cout << '\n';*/
 
         meshes["track"] = new Mesh("track");
         meshes["track"]->InitFromData(vertices, indices);
@@ -311,6 +362,10 @@ void Tema2::Init()
     //AddCpu(player_pos + glm::vec3{ -0.25f, 0.0f, 1.5f }, 10, 4.9f, glm::vec3{ 0.671f, 0.324f, 0.245f }); // left side from player
     //AddCpu(player_pos - glm::vec3_left * 2.0f, 10, 4.6f, glm::vec3{ 0.724f, 0.871f, 0.745f }); // one row behind
     //AddCpu(player_pos + glm::vec3{ 0.75f, 0.0f, 0.5f }, 10, 5.0f, glm::vec3{ 0.824f, 0.871f, 0.145f }); // left side from player, one row behind
+
+    for (int i = 0; i < cpu_cars.size(); ++i)
+        timetable.RegisterCar(i);
+    timetable.RegisterCar(PLAYER_NUMBER);
 
     // Create player-controlled car
     {
@@ -401,6 +456,14 @@ void Tema2::Init()
     piua = false;
     OnInputUpdate(0.0f, 0);
     piua = true;
+    std::cout << "Press P to start race!\n";
+    std::cout << "Controls:\n";
+    std::cout << "\tW\t\taccelerate\n";
+    std::cout << "\tS\t\tbreak\n";
+    std::cout << "\tA\t\tturn left\n";
+    std::cout << "\tS\t\tturn right\n";
+    std::cout << "\tSHIFT + WASD\thold while racing to see how Max Verstappen feels\n";
+    std::cout << "\tMOUSE2 + WASD\tfree roam camera\n";
 
     main_camera = GetSceneCamera();
     glm::ivec2 resolution = window->GetResolution();
@@ -414,6 +477,13 @@ void Tema2::Init()
     minimap->m_transform->SetWorldPosition(player_pos + glm::vec3_up * 5.0f);
     minimap->m_transform->SetWorldRotation(glm::vec3(-90.0f, 90.0f, 0.0f));
     minimap->Update();
+
+    std::cout << '\n';
+    std::cout << '\n';
+
+    std::cout << "Lap      Sector 1        Sector 2        Sector 3        Lap time  \n";
+    std::cout << "-------------------------------------------------------------------\n";
+    std::cout << "  1    00:00:00.000    00:00:00.000    00:00:00.000    00:00:00.000\n";
 }
 
 void Tema2::Render()
@@ -516,16 +586,31 @@ void Tema2::FrameEnd()
  *  how they behave, see `input_controller.h`.
  */
 
-static float thetime = 0.0f;
+//static float thetime = 0.0f;
 
 void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
-    if (window->MouseHold(GLFW_MOUSE_BUTTON_2) || piua)
+    if (piua)
         return;
 
-    //assert(main_camera == GetSceneCamera());
+    /*assert(main_camera == GetSceneCamera());
+    thetime += deltaTime;*/
 
-    thetime += deltaTime;
+    // Update timetable
+    Sector s = Sector::SECTOR_1;
+
+    if (player_curr_segment > SECTOR1_END && player_curr_segment < SECTOR2_END)
+        s = Sector::SECTOR_2;
+    else if (player_curr_segment > SECTOR2_END && player_curr_segment < SECTOR3_END)
+        s = Sector::SECTOR_3;
+
+    timetable.Track(PLAYER_NUMBER, s, deltaTime);
+    timetable.PrintCar(PLAYER_NUMBER);
+
+    std::cout << "Player in sector " << (unsigned short) s + 1 << " (segment " << player_curr_segment << ")\n";
+
+    if (window->MouseHold(GLFW_MOUSE_BUTTON_2))
+        return;
 
     for (const Cpu& cpu : cpu_cars)
     //Cpu& cpu = cpu_cars[1];
@@ -535,7 +620,6 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
             // std::cout << thetime << " -> Player collides with another car\n";
             return;
         }
-
 
     float actual_speed = player_speed;
     float actual_turn_speed = player_turn_speed;
@@ -594,7 +678,6 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
         // std::cout << "                   old segment " << previous_segment<< '\n';
         ProjectPointLine_RH(point_on_line, new_player_pos, track_pois[previous_segment], track_pois[player_curr_segment]);
     }
-    // std::cout << "Player in segment " << player_curr_segment << '\n';
 
     const float dist = glm::length(new_player_pos - point_on_line);
     if (dist > half_track_width)
